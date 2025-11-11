@@ -329,6 +329,7 @@ class CoreChecks : public vvl::DeviceProxy {
     bool ValidatePipelineCacheControlFlags(VkPipelineCreateFlags2 flags, const Location& flags_loc, const char* vuid) const;
     bool ValidatePipelineIndirectBindableFlags(VkPipelineCreateFlags2 flags, const Location& flags_loc, const char* vuid) const;
     bool ValidatePipelineProtectedAccessFlags(VkPipelineCreateFlags2 flags, const Location& flags_loc) const;
+    bool ValidatePipeline64BitIndexingFlags(VkPipelineCreateFlags2 flags, const Location& flags_loc, const char* vuid) const;
     void EnqueueValidateImageBarrierAttachment(const Location& loc, core::CommandBufferSubState& cb_sub_state,
                                                const ImageBarrier& barrier);
     void EnqueueValidateDynamicRenderingImageBarrierLayouts(const Location barrier_loc, vvl::CommandBuffer& cb_state,
@@ -914,8 +915,6 @@ class CoreChecks : public vvl::DeviceProxy {
                                    const ShaderStageState& stage_state, const Location& loc) const;
     bool ValidateShaderResolveQCOM(const spirv::Module& module_state, VkShaderStageFlagBits stage, const vvl::Pipeline& pipeline,
                                    const Location& loc) const;
-    bool ValidateShaderSubgroupSizeControl(VkShaderStageFlagBits stage, const ShaderStageState& stage_state,
-                                           const Location& loc) const;
     bool ValidateWorkgroupSharedMemory(const spirv::Module& module_state, VkShaderStageFlagBits stage,
                                        uint32_t total_workgroup_shared_memory, const Location& loc) const;
     bool ValidateShaderTileImage(const spirv::Module& module_state, const spirv::EntryPoint& entrypoint,
@@ -960,6 +959,8 @@ class CoreChecks : public vvl::DeviceProxy {
                                           const spirv::ResourceInterfaceVariable* sampler_variable,
                                           const YcbcrSamplerUsedByImage* sampler_info, const LogObjectList& objlist,
                                           const Location& loc) const;
+    bool ValidateShader64BitIndexing(const spirv::Module& module_state, const spirv::EntryPoint& entrypoint,
+                                     const ShaderStageState& stage_state, const vvl::Pipeline* pipeline, const Location& loc) const;
     bool ValidateTransformFeedbackPipeline(const spirv::Module& module_state, const spirv::EntryPoint& entrypoint,
                                            const vvl::Pipeline& pipeline, const Location& loc) const;
     virtual bool ValidatePipelineShaderStage(const vvl::Pipeline& pipeline,

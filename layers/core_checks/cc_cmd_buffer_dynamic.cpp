@@ -247,7 +247,6 @@ bool CoreChecks::ValidateDynamicStateIsSet(const LastBound& last_bound_state, co
             case CB_DYNAMIC_STATE_LINE_STIPPLE_ENABLE_EXT:
                 vuid_str = vuid.set_line_stipple_enable_08669;
                 break;
-                ;
             default:
                 assert(false);
                 break;
@@ -516,8 +515,11 @@ bool CoreChecks::ValidateGraphicsDynamicStateSetStatus(const LastBound& last_bou
     if (has_pipeline) {
         if (!last_bound_state.IsDynamic(CB_DYNAMIC_STATE_VERTEX_INPUT_EXT) &&
             last_bound_state.IsDynamic(CB_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE)) {
-            skip |=
-                ValidateDynamicStateIsSet(last_bound_state, state_status_cb, CB_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE, vuid);
+            // The vertex buffer for DGC needs to be validated in GPU-AV
+            if (vuid.loc().function != vvl::Func::vkCmdExecuteGeneratedCommandsEXT) {
+                skip |= ValidateDynamicStateIsSet(last_bound_state, state_status_cb, CB_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE,
+                                                  vuid);
+            }
         }
     }
 
@@ -557,8 +559,7 @@ bool CoreChecks::ValidateDrawDynamicStatePipelineRenderPass(const LastBound& las
         }
     }
 
-    if (rp_state.UsesDynamicRendering() &&
-        (!IsExtEnabled(extensions.vk_ext_shader_object) || !last_bound_state.IsAnyGraphicsShaderBound())) {
+    if (rp_state.UsesDynamicRendering()) {
         skip |= ValidateDrawRenderingAttachmentLocation(cb_state, pipeline, vuid);
         skip |= ValidateDrawRenderingInputAttachmentIndex(cb_state, pipeline, vuid);
     }
@@ -1125,10 +1126,12 @@ bool CoreChecks::ValidateDrawDynamicStateValue(const LastBound& last_bound_state
                                             VK_FORMAT_R32_UINT, VK_FORMAT_R32_SINT})) {
                         const char* vuid_string =
                             has_pipeline ? vuid.set_coverage_to_color_location_07490 : vuid.set_coverage_to_color_location_09420;
-                        skip |= LogError(vuid_string, cb_state.Handle(), vuid.loc(),
-                                         "coverageToColorLocation (%" PRIu32
-                                         ") set by vkCmdSetCoverageToColorLocationNV points to a color attachment with format %s.",
-                                         cb_state.dynamic_state_value.coverage_to_color_location, string_VkFormat(format));
+                        skip |=
+                            LogError(vuid_string, cb_state.Handle(), vuid.loc(),
+                                     "coverageToColorLocation (%" PRIu32
+                                     ") set by vkCmdSetCoverageToColorLocationNV points to a color attachment with format %s.\n%s",
+                                     cb_state.dynamic_state_value.coverage_to_color_location, string_VkFormat(format),
+                                     cb_state.DescribeActiveColorAttachment());
                     }
                 }
             }

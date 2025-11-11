@@ -5,7 +5,7 @@
         "prefix": "vvl",
         "type": "GLOBAL",
         "library_path": "@JSON_LIBRARY_PATH@",
-        "api_version": "1.4.331",
+        "api_version": "1.4.332",
         "implementation_version": "1",
         "description": "Khronos Validation Layer",
         "introduction": "The main, comprehensive Khronos validation layer.\n\nVulkan is an Explicit API, enabling direct control over how GPUs actually work. By design, minimal error checking is done inside a Vulkan driver. Applications have full control and responsibility for correct operation. Any errors in how Vulkan is used can result in a crash. \n\nThe Khronos Validation Layer can be enabled to assist development by enabling developers to verify their applications correctly use the Vulkan API.",
@@ -89,7 +89,7 @@
                         { "key": "gpuav_enable", "value": false },
                         { "key": "validate_best_practices", "value": false },
                         { "key": "report_flags", "value": [ "error", "warn" ] },
-                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG" ] },
+                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" ] },
                         { "key": "enable_message_limit", "value": true }
                     ]
                 },
@@ -143,7 +143,7 @@
                         { "key": "gpuav_enable", "value": false },
                         { "key": "validate_best_practices", "value": true },
                         { "key": "report_flags", "value": [ "error", "warn", "perf" ] },
-                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG" ] },
+                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" ] },
                         { "key": "enable_message_limit", "value": true }
                     ]
                 },
@@ -170,7 +170,7 @@
                         { "key": "gpuav_enable", "value": false },
                         { "key": "validate_best_practices", "value": false },
                         { "key": "report_flags", "value": [ "error" ] },
-                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG" ] },
+                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" ] },
                         { "key": "enable_message_limit", "value": true }
                     ]
                 },
@@ -200,7 +200,7 @@
                         { "key": "gpuav_buffers_validation", "value": true },
                         { "key": "validate_best_practices", "value": false },
                         { "key": "report_flags", "value": [ "error" ] },
-                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG" ] },
+                        { "key": "debug_action", "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" ] },
                         { "key": "enable_message_limit", "value": true }
                     ]
                 },
@@ -254,7 +254,7 @@
                         { "key": "printf_enable", "value": false },
                         { "key": "validate_best_practices", "value": false },
                         { "key": "report_flags",  "value": [ "warn" ] },
-                        { "key": "debug_action",  "value": [] },
+                        { "key": "debug_action",  "value": [ "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT" ] },
                         { "key": "enable_message_limit", "value": false }
                     ]
                 }
@@ -471,7 +471,7 @@
                                 {
                                     "key": "syncval_shader_accesses_heuristic",
                                     "label": "Shader accesses heuristic",
-                                    "description": "Take into account memory accesses performed by the shader based on SPIR-V static analysis. Warning: can produce false-positives, can ignore certain types of accesses.",
+                                    "description": "Take into account memory accesses performed by the shader based on SPIR-V static analysis. Warning: can produce false-positives, can ignore certain types of accesses, does not support VK_EXT_descriptor_buffer.",
                                     "type": "BOOL",
                                     "default": false,
                                     "dependence": {
@@ -1099,7 +1099,7 @@
                         }
                     ],
                     "default": [
-                        "VK_DBG_LAYER_ACTION_LOG_MSG"
+                        "VK_DBG_LAYER_ACTION_LOG_MSG", "VK_DBG_LAYER_ACTION_DEBUG_OUTPUT"
                     ]
                 },
                 {

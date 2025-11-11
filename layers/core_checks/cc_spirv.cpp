@@ -1149,6 +1149,103 @@ bool CoreChecks::ValidateCooperativeVector(const spirv::Module &module_state, co
     return skip;
 }
 
+bool CoreChecks::ValidateShader64BitIndexing(const spirv::Module &module_state, const spirv::EntryPoint &entrypoint,
+                                             const ShaderStageState &stage_state, const vvl::Pipeline *pipeline,
+                                             const Location &loc) const {
+    bool skip = false;
+
+    if (pipeline && (pipeline->create_flags & VK_PIPELINE_CREATE_2_64_BIT_INDEXING_BIT_EXT)) {
+        return skip;
+    }
+    if (stage_state.shader_object_create_info &&
+        (stage_state.shader_object_create_info->flags & VK_SHADER_CREATE_64_BIT_INDEXING_BIT_EXT)) {
+        return skip;
+    }
+    if (entrypoint.execution_mode.Has(spirv::ExecutionModeSet::shader_64bit_indexing)) {
+        return skip;
+    }
+
+    auto const &check = [&](uint32_t value_id) -> bool {
+        auto value_insn = module_state.FindDef(value_id);
+        auto type_insn = module_state.FindDef(value_insn->Word(1));
+        return type_insn->Word(2) != 32;
+    };
+
+    for (const spirv::Instruction *cooperative_vector_inst : module_state.static_data_.cooperative_vector_inst) {
+        const spirv::Instruction &insn = *cooperative_vector_inst;
+        switch (insn.Opcode()) {
+            case spv::OpCooperativeVectorMatrixMulNV:
+            case spv::OpCooperativeVectorMatrixMulAddNV: {
+                uint32_t matrix_offset_id = insn.Word(6);
+                if (check(matrix_offset_id)) {
+                    skip |=
+                        LogError("VUID-RuntimeSpirv-OpCooperativeVectorMatrixMulAddNV-11808", module_state.handle(), loc,
+                                 "SPIR-V (%s) contains 64-bit matrix offset\n%s\n", string_VkShaderStageFlagBits(entrypoint.stage),
+                                 module_state.DescribeInstruction(insn).c_str());
+                }
+
+                if (insn.Opcode() == spv::OpCooperativeVectorMatrixMulAddNV) {
+                    uint32_t bias_offset_id = insn.Word(9);
+                    if (check(bias_offset_id)) {
+                        skip |= LogError("VUID-RuntimeSpirv-OpCooperativeVectorMatrixMulAddNV-11808", module_state.handle(), loc,
+                                         "SPIR-V (%s) contains 64-bit bias offset\n%s\n",
+                                         string_VkShaderStageFlagBits(entrypoint.stage),
+                                         module_state.DescribeInstruction(insn).c_str());
+                    }
+                }
+                break;
+            }
+            case spv::OpCooperativeVectorLoadNV: {
+                if (check(insn.Word(4))) {
+                    skip |=
+                        LogError("VUID-RuntimeSpirv-OpCooperativeVectorLoadNV-11809", module_state.handle(), loc,
+                                 "SPIR-V (%s) contains 64-bit load offset\n%s\n", string_VkShaderStageFlagBits(entrypoint.stage),
+                                 module_state.DescribeInstruction(insn).c_str());
+                }
+                break;
+            }
+            case spv::OpCooperativeVectorStoreNV: {
+                if (check(insn.Word(2))) {
+                    skip |=
+                        LogError("VUID-RuntimeSpirv-OpCooperativeVectorLoadNV-11809", module_state.handle(), loc,
+                                 "SPIR-V (%s) contains 64-bit store offset\n%s\n", string_VkShaderStageFlagBits(entrypoint.stage),
+                                 module_state.DescribeInstruction(insn).c_str());
+                }
+                break;
+            }
+            case spv::OpCooperativeVectorReduceSumAccumulateNV: {
+                if (check(insn.Word(2))) {
+                    skip |=
+                        LogError("VUID-RuntimeSpirv-OpCooperativeVectorLoadNV-11809", module_state.handle(), loc,
+                                 "SPIR-V (%s) contains 64-bit reducesum offset\n%s\n",
+                                 string_VkShaderStageFlagBits(entrypoint.stage), module_state.DescribeInstruction(insn).c_str());
+                }
+                break;
+            }
+            case spv::OpCooperativeVectorOuterProductAccumulateNV: {
+                if (check(insn.Word(2))) {
+                    skip |=
+                        LogError("VUID-RuntimeSpirv-OpCooperativeVectorLoadNV-11809", module_state.handle(), loc,
+                                 "SPIR-V (%s) contains 64-bit outerproduct offset\n%s\n",
+                                 string_VkShaderStageFlagBits(entrypoint.stage), module_state.DescribeInstruction(insn).c_str());
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    for (const spirv::Instruction *array_length_inst : module_state.static_data_.array_length_inst) {
+        const spirv::Instruction &insn = *array_length_inst;
+        if (check(insn.Word(1))) {
+            skip |= LogError("VUID-RuntimeSpirv-OpArrayLength-11807", module_state.handle(), loc,
+                             "SPIR-V (%s) contains 64-bit array length return type\n%s\n",
+                             string_VkShaderStageFlagBits(entrypoint.stage), module_state.DescribeInstruction(insn).c_str());
+        }
+    }
+    return skip;
+}
+
 bool CoreChecks::ValidateShaderResolveQCOM(const spirv::Module &module_state, VkShaderStageFlagBits stage,
                                            const vvl::Pipeline &pipeline, const Location &loc) const {
     bool skip = false;
@@ -1345,6 +1442,7 @@ bool CoreChecks::ValidateWorkgroupSharedMemory(const spirv::Module &module_state
                             "cooperativeMatrixWorkgroupScopeReservedSharedMemory (%" PRIu32 ").",
                             total_workgroup_shared_memory, phys_dev_props.limits.maxComputeSharedMemorySize,
                             phys_dev_ext_props.cooperative_matrix_props2_nv.cooperativeMatrixWorkgroupScopeReservedSharedMemory);
+                        break;
                     }
                 }
             }
@@ -1429,6 +1527,15 @@ bool CoreChecks::ValidateShaderInterfaceVariable(const spirv::Module &module_sta
                              variable.base_type.Describe().c_str());
         }
     }
+
+    if (variable.is_uniform_buffer && variable.type_struct_info && variable.type_struct_info->has_runtime_array &&
+        !enabled_features.shaderUniformBufferUnsizedArray) {
+        skip |= LogError("VUID-RuntimeSpirv-shaderUniformBufferUnsizedArray-11806", module_state.handle(), loc,
+                         "SPIR-V (%s) uses descriptor %s which is an uniform buffer with a runtime array, but "
+                         "shaderUniformBufferUnsizedArray was not enabled.",
+                         string_VkShaderStageFlagBits(variable.stage), variable.DescribeDescriptor().c_str());
+    }
+
     return skip;
 }
 
@@ -1792,7 +1899,6 @@ bool CoreChecks::ValidateShaderStage(const ShaderStageState &stage_state, const 
 
     // First validate all things that don't require valid SPIR-V
     // this is found when using VK_EXT_shader_module_identifier
-    skip |= ValidateShaderSubgroupSizeControl(stage, stage_state, loc);
     skip |= ValidateSpecializations(stage_state.GetSpecializationInfo(), loc.dot(Field::pSpecializationInfo));
     if (pipeline) {
         skip |= ValidateShaderStageMaxResources(stage, *pipeline, loc);
@@ -2036,6 +2142,7 @@ bool CoreChecks::ValidateShaderStage(const ShaderStageState &stage_state, const 
     if (enabled_features.cooperativeVector) {
         skip |= ValidateCooperativeVector(module_state, entrypoint, stage_state, loc);
     }
+    skip |= ValidateShader64BitIndexing(module_state, entrypoint, stage_state, pipeline, loc);
 
     if (pipeline) {
         if (enabled_features.transformFeedback) {

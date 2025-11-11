@@ -167,6 +167,8 @@ struct ExecutionModeSet {
         geometry_input_line_adjacency_bit = 1ull << 40,
         geometry_input_triangle_bit = 1ull << 41,
         geometry_input_triangle_adjacency_bit = 1ull << 42,
+
+        shader_64bit_indexing = 1ull << 43,
     };
 
     // bits to know if things have been set or not by a Decoration
@@ -213,6 +215,7 @@ struct TypeStructInfo {
     const uint32_t id;
     const uint32_t length;  // number of elements
     const DecorationSet &decorations;
+    bool has_runtime_array;
 
     // data about each member in struct
     struct Member {
@@ -484,6 +487,7 @@ struct ResourceInterfaceVariable : public VariableBase {
     bool is_storage_image{false};
     bool is_storage_texel_buffer{false};
     const bool is_storage_buffer;
+    const bool is_uniform_buffer;
     bool is_input_attachment{false};
     bool is_storage_tensor{false};
 
@@ -493,6 +497,7 @@ struct ResourceInterfaceVariable : public VariableBase {
   protected:
     static const Instruction &FindBaseType(ResourceInterfaceVariable &variable, const Module &module_state);
     static bool IsStorageBuffer(const ResourceInterfaceVariable &variable);
+    static bool IsUniformBuffer(const ResourceInterfaceVariable &variable);
 };
 
 // Used to help detect if different variable is being used
@@ -663,6 +668,7 @@ struct Module {
         std::vector<const Instruction *> cooperative_matrix_inst;
         std::vector<const Instruction *> cooperative_vector_inst;
         std::vector<const Instruction *> emit_mesh_tasks_inst;
+        std::vector<const Instruction *> array_length_inst;
 
         std::vector<spv::Capability> capability_list;
         // Code on the hot path can cache capabilities for fast access.

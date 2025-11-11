@@ -465,6 +465,7 @@ class CommandBuffer : public RefcountedStateObject, public SubStateManager<Comma
     // only when not using dynamic rendering
     vku::safe_VkRenderPassSampleLocationsBeginInfoEXT sample_locations_begin_info;
     std::vector<SubpassInfo> active_subpasses;
+    const char *DescribeActiveColorAttachment() const;
 
     VkSubpassContents active_subpass_contents;
     uint32_t GetActiveSubpass() const { return active_subpass_; }
@@ -718,7 +719,8 @@ class CommandBuffer : public RefcountedStateObject, public SubStateManager<Comma
     void RecordBarrierObjects(const VkDependencyInfo &dep_info, const Location &loc);
 
     void SetImageViewLayout(const vvl::ImageView &view_state, VkImageLayout layout, VkImageLayout layoutStencil);
-    void TrackImageViewFirstLayout(const vvl::ImageView &view_state, VkImageLayout layout);
+    void TrackImageViewFirstLayout(const vvl::ImageView &view_state, VkImageLayout layout,
+                                   const char *submit_time_layout_mismatch_vuid);
 
     void SetImageLayout(const vvl::Image &image_state, const VkImageSubresourceRange &normalized_subresource_range,
                         VkImageLayout layout, VkImageLayout expected_layout = kInvalidLayout);
